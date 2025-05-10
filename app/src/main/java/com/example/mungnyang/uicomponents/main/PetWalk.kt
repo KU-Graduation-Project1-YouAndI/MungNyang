@@ -1,12 +1,19 @@
 package com.example.mungnyang.uicomponents.main
 
 import android.util.Log
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,27 +52,38 @@ fun PetWalk() {
         }
     }
 
-    AndroidView(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(400.dp),
-        factory = { 
-            mapView.apply {
-                start(object : MapLifeCycleCallback() {
-                    override fun onMapDestroy() = Unit
-                    override fun onMapError(e: Exception?) {
-                        Log.e("KakaoMap", "지도 로딩 실패", e)
-                    }
-                    override fun onMapResumed() = Unit
-                }, object : KakaoMapReadyCallback() {
-                    override fun onMapReady(map: KakaoMap) {
-                        val seoul = LatLng.from(37.5665, 126.9780)
-                        val cameraUpdate = CameraUpdateFactory.newCenterPosition(seoul)
-                        map.moveCamera(cameraUpdate)
-                    }
-                })
-            }
-        },
-        update = {}
-    )
+            .padding(16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(60.dp))
+
+        AndroidView(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(500.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp)),
+            factory = {
+                mapView.apply {
+                    start(object : MapLifeCycleCallback() {
+                        override fun onMapDestroy() = Unit
+                        override fun onMapError(e: Exception?) {
+                            Log.e("KakaoMap", "지도 로딩 실패", e)
+                        }
+
+                        override fun onMapResumed() = Unit
+                    }, object : KakaoMapReadyCallback() {
+                        override fun onMapReady(map: KakaoMap) {
+                            val seoul = LatLng.from(37.5665, 126.9780)
+                            val cameraUpdate = CameraUpdateFactory.newCenterPosition(seoul)
+                            map.moveCamera(cameraUpdate)
+                        }
+                    })
+                }
+            },
+            update = {}
+        )
+    }
 }

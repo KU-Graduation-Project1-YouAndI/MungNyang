@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -184,7 +186,9 @@ fun AiCameraDogEye(
                                     "${context.packageName}.fileprovider",
                                     photoFile
                                 )
-                                onCaptureSuccess(savedUri.toString())
+                                Handler(Looper.getMainLooper()).post {
+                                    onCaptureSuccess(savedUri.toString())
+                                }
                             }
 
                             override fun onError(exc: ImageCaptureException) {

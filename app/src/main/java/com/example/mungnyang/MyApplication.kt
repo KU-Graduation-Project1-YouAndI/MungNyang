@@ -8,6 +8,6 @@ class MyApplication: Application() {
         super.onCreate()
 
         // SDK 초기화: 앱 키 넣기
-        KakaoMapSdk.init(this, "8e166c18c13ad4ffbba16bb578167326")
+        //KakaoMapSdk.init(this, "8e166c18c13ad4ffbba16bb578167326")
     }
 }

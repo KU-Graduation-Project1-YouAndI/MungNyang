@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.ExifInterface
+import android.media.MediaScannerConnection
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
@@ -204,9 +205,11 @@ fun AiCameraDogEye(
                                     "${context.packageName}.fileprovider",
                                     photoFile
                                 )
-                                // 크롭 파일 생성 224x224
-                                val croppedFile = File(photoFile.parent, "cropped_${photoFile.name}")
+                                // 저장 경로를 Pictures/MungNyang/로 지정
+                                val croppedFile = getMungNyangOutputFile(context)
                                 cropCenterSquareTo224(photoFile, croppedFile)
+                                // 갤러리 앱에서 보이게 미디어 스캔
+                                MediaScannerConnection.scanFile(context, arrayOf(croppedFile.absolutePath), null, null)
                                 val croppedUri = FileProvider.getUriForFile(
                                     context,
                                     "${context.packageName}.fileprovider",
@@ -283,4 +286,11 @@ fun Bitmap.rotate(degrees: Float): Bitmap {
     val matrix = android.graphics.Matrix()
     matrix.postRotate(degrees)
     return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
+}
+
+fun getMungNyangOutputFile(context: Context): File { // 해당경로에 이미지 저장(/storage/emulated/0/Pictures/MungNyang/)
+    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MungNyang")
+    if (!dir.exists()) dir.mkdirs()
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    return File(dir, "cropped_$timeStamp.jpg")
 }

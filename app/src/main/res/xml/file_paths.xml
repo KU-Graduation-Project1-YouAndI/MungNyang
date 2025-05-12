@@ -3,4 +3,8 @@
     <external-files-path
         name="my_images"
         path="Pictures" />
+    <!-- Pictures/MungNyang/ 하위 모든 파일 허용 -->
+    <external-path
+        name="mungnyang_pictures"
+        path="Pictures/MungNyang/" />
 </paths>

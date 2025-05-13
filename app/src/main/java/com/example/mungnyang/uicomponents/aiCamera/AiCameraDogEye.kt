@@ -3,6 +3,13 @@ package com.example.mungnyang.uicomponents.aiCamera
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.ExifInterface
+import android.media.MediaScannerConnection
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,10 +43,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import java.io.File
+import java.io.FileInputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,8 +58,8 @@ import java.util.concurrent.Executors
 
 @Composable
 fun AiCameraDogEye(
-    modifier: Modifier = Modifier,
     onCaptureSuccess: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -75,18 +86,47 @@ fun AiCameraDogEye(
         }
     }
 
-    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-    val preview = remember { Preview.Builder().build() }
-    val imageCapture = remember { 
-        ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .build() 
-    }
-    val cameraSelector = remember { CameraSelector.DEFAULT_BACK_CAMERA }
-
+    // 카메라 리소스 관리를 위한 상태
+    var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
+    var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
+    
+    // 라이프사이클 관찰자 추가
     DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_DESTROY -> {
+                    try {
+                        cameraProvider?.unbindAll()
+                        imageCapture = null
+                        cameraProvider = null
+                    } catch (e: Exception) {
+                        Log.e("AiCameraDogEye", "카메라 리소스 해제 실패", e)
+                    }
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
-            cameraExecutor.shutdown()
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // 카메라 설정
+    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+    val preview = Preview.Builder().build()
+    val executor = remember { Executors.newSingleThreadExecutor() }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                cameraProvider?.unbindAll()
+                imageCapture = null
+                cameraProvider = null
+                executor.shutdown()
+            } catch (e: Exception) {
+                Log.e("AiCameraDogEye", "카메라 리소스 해제 실패", e)
+            }
         }
     }
 
@@ -95,107 +135,162 @@ fun AiCameraDogEye(
             .fillMaxSize()
             .background(Color(0xFFFFF2C2))
     ) {
-        if (hasCameraPermission) {
-            AndroidView(
+        if (hasCameraPermission) { 
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(700.dp),
-                factory = { context ->
-                    PreviewView(context).apply {
-                        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                    }
-                },
-                update = { previewView ->
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-                    cameraProviderFuture.addListener({
-                        try {
-                            val cameraProvider = cameraProviderFuture.get()
-                            preview.setSurfaceProvider(previewView.surfaceProvider)
-
-                            try {
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    cameraSelector,
-                                    preview,
-                                    imageCapture
-                                )
-                            } catch (e: Exception) {
-                                Log.e("AiCameraDogEye", "카메라 바인딩 실패", e)
-                            }
-                        } catch (e: Exception) {
-                            Log.e("AiCameraDogEye", "카메라 프로바이더 가져오기 실패", e)
+                    .height(700.dp)
+            ) {
+                AndroidView(  
+                    modifier = Modifier.matchParentSize(),
+                    factory = { context ->
+                        PreviewView(context).apply {
+                            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                         }
-                    }, ContextCompat.getMainExecutor(context))
-                }
-            )
+                    },
+                    update = { previewView ->
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                        cameraProviderFuture.addListener({
+                            try {
+                                val provider = cameraProviderFuture.get()
+                                cameraProvider = provider
+                                preview.setSurfaceProvider(previewView.surfaceProvider)
+
+                                imageCapture = ImageCapture.Builder()
+                                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                                    .build()
+
+                                try {
+                                    provider.unbindAll()
+                                    provider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        cameraSelector,
+                                        preview,
+                                        imageCapture
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e("AiCameraDogEye", "카메라 바인딩 실패", e)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("AiCameraDogEye", "카메라 프로바이더 가져오기 실패", e)
+                            }
+                        }, ContextCompat.getMainExecutor(context))
+                    }
+                )
+                Text(
+                    text = "초점에 맞춰 하단 촬영 버튼을 눌러주세요",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 32.dp)
+                        .background(Color(0x80000000)),
+                )
+            }
+
+            // 캡처 버튼
+            Button(
+                onClick = {
+                    val imageCapture = imageCapture ?: return@Button
+                    val photoFile = createImageFile(context)
+                    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+                    imageCapture.takePicture(
+                        outputOptions,
+                        executor,
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                val savedUri = output.savedUri ?: FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    photoFile
+                                )
+                                // 저장 경로를 Pictures/MungNyang/로 지정
+                                val croppedFile = getMungNyangOutputFile(context)
+                                cropCenterSquareTo224(photoFile, croppedFile)
+                                // 갤러리 앱에서 보이게 미디어 스캔
+                                MediaScannerConnection.scanFile(context, arrayOf(croppedFile.absolutePath), null, null)
+                                val croppedUri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    croppedFile
+                                )
+                                Handler(Looper.getMainLooper()).post {
+                                    onCaptureSuccess(croppedUri.toString())
+                                }
+                            }
+
+                            override fun onError(exc: ImageCaptureException) {
+                                Log.e("AiCameraDogEye", "사진 촬영 실패", exc)
+                            }
+                        }
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text("사진 촬영")
+            }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("카메라 권한이 필요합니다")
             }
         }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            if (hasCameraPermission) {
-                Button(
-                    onClick = {
-                        try {
-                            val photoFile = createFile(context, "jpg")
-                            Log.d("AiCameraDogEye", "Created file: ${photoFile.absolutePath}")
-                            
-                            val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-                            imageCapture.takePicture(
-                                outputOptions,
-                                ContextCompat.getMainExecutor(context),
-                                object : ImageCapture.OnImageSavedCallback {
-                                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                                        try {
-                                            val savedUri = output.savedUri
-                                            Log.d("AiCameraDogEye", "Saved URI: $savedUri")
-                                            
-                                            if (savedUri == null) {
-                                                val uri = FileProvider.getUriForFile(
-                                                    context,
-                                                    "com.example.mungnyang.fileprovider",
-                                                    photoFile
-                                                )
-                                                Log.d("AiCameraDogEye", "Created URI: $uri")
-                                                onCaptureSuccess(uri.toString())
-                                            } else {
-                                                onCaptureSuccess(savedUri.toString())
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e("AiCameraDogEye", "URI 생성 실패", e)
-                                        }
-                                    }
-
-                                    override fun onError(exception: ImageCaptureException) {
-                                        Log.e("AiCameraDogEye", "사진 촬영 실패", exception)
-                                    }
-                                }
-                            )
-                        } catch (e: Exception) {
-                            Log.e("AiCameraDogEye", "파일 생성 실패", e)
-                        }
-                    },
-//                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text("촬영")
-                }
-            }
-        }
     }
 }
 
-private fun createFile(context: Context, extension: String): File {
+private fun createImageFile(context: Context): File {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val storageDir = context.getExternalFilesDir("Pictures")
-    return File.createTempFile("JPEG_${timeStamp}_", ".${extension}", storageDir)
+    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+    return File.createTempFile(
+        "JPEG_${timeStamp}_",
+        ".jpg",
+        storageDir
+    ).apply {
+        deleteOnExit() // 앱 종료 시 자동 삭제
+    }
+}
+
+fun cropCenterSquareTo224(inputFile: File, outputFile: File) {
+    // 1. Bitmap 로드
+    val bitmap = BitmapFactory.decodeFile(inputFile.absolutePath)
+
+    // 2. EXIF에서 회전 정보 읽기
+    val exif = ExifInterface(inputFile.absolutePath)
+    val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+    val rotatedBitmap = when (orientation) {
+        ExifInterface.ORIENTATION_ROTATE_90 -> bitmap.rotate(90f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> bitmap.rotate(180f)
+        ExifInterface.ORIENTATION_ROTATE_270 -> bitmap.rotate(270f)
+        else -> bitmap
+    }
+
+    // 3. 중앙 크롭
+    val size = minOf(rotatedBitmap.width, rotatedBitmap.height)
+    val x = (rotatedBitmap.width - size) / 2
+    val y = (rotatedBitmap.height - size) / 2
+    val squareBitmap = Bitmap.createBitmap(rotatedBitmap, x, y, size, size)
+    val resizedBitmap = Bitmap.createScaledBitmap(squareBitmap, 224, 224, true)
+    outputFile.outputStream().use { out ->
+        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+    }
+    if (rotatedBitmap != bitmap) bitmap.recycle()
+    squareBitmap.recycle()
+    resizedBitmap.recycle()
+    rotatedBitmap.recycle()
+}
+
+// Bitmap 확장 함수
+fun Bitmap.rotate(degrees: Float): Bitmap {
+    val matrix = android.graphics.Matrix()
+    matrix.postRotate(degrees)
+    return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
+}
+
+fun getMungNyangOutputFile(context: Context): File { // 해당경로에 이미지 저장(/storage/emulated/0/Pictures/MungNyang/)
+    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MungNyang")
+    if (!dir.exists()) dir.mkdirs()
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    return File(dir, "cropped_$timeStamp.jpg")
 }

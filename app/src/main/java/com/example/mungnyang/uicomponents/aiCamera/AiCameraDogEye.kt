@@ -73,16 +73,67 @@ fun AiCameraDogEye(
         )
     }
 
-    val launcher = rememberLauncherForActivityResult(
+    var hasStoragePermission by remember {
+        mutableStateOf(
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+        )
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { granted ->
             hasCameraPermission = granted
         }
     )
 
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted ->
+            hasStoragePermission = granted
+        }
+    )
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri ->
+            uri?.let {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val photoFile = createImageFile(context)
+                inputStream?.use { stream ->
+                    photoFile.outputStream().use { output ->
+                        stream.copyTo(output)
+                    }
+                }
+                val savedUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    photoFile
+                )
+                onCaptureSuccess(savedUri.toString())
+            }
+        }
+    )
+
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
-            launcher.launch(Manifest.permission.CAMERA)
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+        if (!hasStoragePermission) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+            } else {
+                storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
         }
     }
 
@@ -188,49 +239,77 @@ fun AiCameraDogEye(
                 )
             }
 
-            // 캡처 버튼
-            Button(
-                onClick = {
-                    val imageCapture = imageCapture ?: return@Button
-                    val photoFile = createImageFile(context)
-                    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-                    imageCapture.takePicture(
-                        outputOptions,
-                        executor,
-                        object : ImageCapture.OnImageSavedCallback {
-                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                                val savedUri = output.savedUri ?: FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.fileprovider",
-                                    photoFile
-                                )
-                                // 저장 경로를 Pictures/MungNyang/로 지정
-                                val croppedFile = getMungNyangOutputFile(context)
-                                cropCenterSquareTo224(photoFile, croppedFile)
-                                // 갤러리 앱에서 보이게 미디어 스캔
-                                MediaScannerConnection.scanFile(context, arrayOf(croppedFile.absolutePath), null, null)
-                                val croppedUri = FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.fileprovider",
-                                    croppedFile
-                                )
-                                Handler(Looper.getMainLooper()).post {
-                                    onCaptureSuccess(croppedUri.toString())
-                                }
-                            }
-
-                            override fun onError(exc: ImageCaptureException) {
-                                Log.e("AiCameraDogEye", "사진 촬영 실패", exc)
-                            }
-                        }
-                    )
-                },
+            // 버튼들을 Row로 배치
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Text("사진 촬영")
+                // 갤러리 버튼
+                Button(
+                    onClick = {
+                        if (hasStoragePermission) {
+                            galleryLauncher.launch("image/*")
+                        } else {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                            } else {
+                                storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
+                    Text("갤러리")
+                }
+
+                // 캡처 버튼
+                Button(
+                    onClick = {
+                        val imageCapture = imageCapture ?: return@Button
+                        val photoFile = createImageFile(context)
+                        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+                        imageCapture.takePicture(
+                            outputOptions,
+                            executor,
+                            object : ImageCapture.OnImageSavedCallback {
+                                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                    val savedUri = output.savedUri ?: FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        photoFile
+                                    )
+                                    // 저장 경로를 Pictures/MungNyang/로 지정
+                                    val croppedFile = getMungNyangOutputFile(context)
+                                    cropCenterSquareTo224(photoFile, croppedFile)
+                                    // 갤러리 앱에서 보이게 미디어 스캔
+                                    MediaScannerConnection.scanFile(context, arrayOf(croppedFile.absolutePath), null, null)
+                                    val croppedUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        croppedFile
+                                    )
+                                    Handler(Looper.getMainLooper()).post {
+                                        onCaptureSuccess(croppedUri.toString())
+                                    }
+                                }
+
+                                override fun onError(exc: ImageCaptureException) {
+                                    Log.e("AiCameraDogEye", "사진 촬영 실패", exc)
+                                }
+                            }
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                ) {
+                    Text("사진 촬영")
+                }
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

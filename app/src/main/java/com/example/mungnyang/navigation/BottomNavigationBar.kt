@@ -33,7 +33,8 @@ fun BottomNavigationBar(navController: NavController) {
             NavigationBarItem(
                 selected = navItem.routes.any { route -> 
                     currentRoute == route || 
-                    (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true)
+                    (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true) ||
+                    (route == "AiCheckDogSkin" && currentRoute?.startsWith("AiCheckDogSkin") == true)
                 },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.Unspecified,
@@ -59,7 +60,8 @@ fun BottomNavigationBar(navController: NavController) {
                             id =
                                 if (navItem.routes.any { route -> 
                                     currentRoute == route || 
-                                    (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true)
+                                    (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true) ||
+                                    (route == "AiCheckDogSkin" && currentRoute?.startsWith("AiCheckDogSkin") == true)
                                 }) navItem.onSelectIcon
                                 else navItem.unSelectIcon
                         ),
@@ -74,7 +76,8 @@ fun BottomNavigationBar(navController: NavController) {
                         color =
                             if (navItem.routes.any { route -> 
                                 currentRoute == route || 
-                                (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true)
+                                (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true) ||
+                                (route == "AiCheckDogSkin" && currentRoute?.startsWith("AiCheckDogSkin") == true)
                             }) Color(0xFF854C22)
                             else Color(0xFFE3B7A0)
                     )

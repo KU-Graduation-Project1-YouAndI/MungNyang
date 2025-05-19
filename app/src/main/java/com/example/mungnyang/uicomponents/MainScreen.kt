@@ -109,7 +109,27 @@ fun MainScreen() {
                                                 .clickable { navController.popBackStack() }
                                         )
                                     }
+                                    is Routes.AiCameraDogSkin -> {
+                                        Text(
+                                            text = "닫기",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .padding(16.dp)
+                                                .clickable { navController.popBackStack() }
+                                        )
+                                    }
                                     is Routes.AiCheckDogEye -> {
+                                        Text(
+                                            text = "재촬영",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .padding(16.dp)
+                                                .clickable { navController.popBackStack() }
+                                        )
+                                    }
+                                    is Routes.AiCheckDogSkin -> {
                                         Text(
                                             text = "재촬영",
                                             fontSize = 16.sp,

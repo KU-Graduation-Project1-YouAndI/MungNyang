@@ -13,7 +13,7 @@ sealed class Routes(
 
     data object AiHealth: Routes("AiHealth")
     data object AiCameraDogEye: Routes("AiCameraDogEye", true, true)
-    data class AiCheckDogEye(val imageData: ByteArray? = null): Routes("AiCheckDogEye", true) {
+    data class AiCheckDogEye(val imageData: ByteArray? = null): Routes("AiCheckDogEye") {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -30,7 +30,22 @@ sealed class Routes(
         }
     }
     data object AiCameraDogSkin: Routes("AiCameraDogSkin", true, true)
-    data object AiCheckDogSkin: Routes("AiCheckDogSkin", true)
+    data class AiCheckDogSkin(val imageData: ByteArray? = null): Routes("AiCheckDogSkin") {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+            other as AiCheckDogEye
+            if (imageData != null) {
+                if (other.imageData == null) return false
+                if (!imageData.contentEquals(other.imageData)) return false
+            } else if (other.imageData != null) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return imageData?.contentHashCode() ?: 0
+        }
+    }
 
     data object PetCalendar: Routes("PetCalendar")
     data object PetWalk: Routes("PetWalk")
@@ -45,7 +60,7 @@ sealed class Routes(
                 route == AiCameraDogEye.route -> AiCameraDogEye
                 route.startsWith("AiCheckDogEye") -> AiCheckDogEye()
                 route == AiCameraDogSkin.route -> AiCameraDogSkin
-                route == AiCheckDogSkin.route -> AiCheckDogSkin
+                route.startsWith("AiCheckDogSkin") -> AiCheckDogSkin()
                 route == PetCalendar.route -> PetCalendar
                 route == PetWalk.route -> PetWalk
                 route == PetLog.route -> PetLog

@@ -472,7 +472,7 @@ private fun createImageFile(context: Context): File {
     }
 }
 
-fun cropCenterSquareTo224(inputFile: File, outputFile: File) {
+private fun cropCenterSquareTo224(inputFile: File, outputFile: File) {
     // 1. Bitmap 로드
     val bitmap = BitmapFactory.decodeFile(inputFile.absolutePath)
 
@@ -502,13 +502,13 @@ fun cropCenterSquareTo224(inputFile: File, outputFile: File) {
 }
 
 // Bitmap 확장 함수
-fun Bitmap.rotate(degrees: Float): Bitmap {
+private fun Bitmap.rotate(degrees: Float): Bitmap {
     val matrix = android.graphics.Matrix()
     matrix.postRotate(degrees)
     return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
 }
 
-fun getMungNyangOutputFile(context: Context): File { // 해당경로에 이미지 저장(/storage/emulated/0/Pictures/MungNyang/)
+private fun getMungNyangOutputFile(context: Context): File { // 해당경로에 이미지 저장(/storage/emulated/0/Pictures/MungNyang/)
     val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MungNyang")
     if (!dir.exists()) dir.mkdirs()
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())

@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
@@ -26,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -134,7 +136,14 @@ fun MainScreen() {
                                     }
                                 }
                             }
-                        }
+                        },
+                        colors = TopAppBarColors(
+                            containerColor = Color.White,
+                            scrolledContainerColor = Color.White,
+                            navigationIconContentColor = Color.Black,
+                            titleContentColor = Color.Black,
+                            actionIconContentColor = Color.Black
+                        )
                     )
                 }
             },

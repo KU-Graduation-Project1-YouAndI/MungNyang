@@ -1,5 +1,6 @@
 package com.example.mungnyang.navigation
 
+import android.util.Log
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -26,19 +27,25 @@ fun BottomNavigationBar(navController: NavController) {
     ) {
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route
+        Log.d("루트루트", currentRoute.toString())
 
         NavBarItems.BarItems.forEach { navItem ->
             NavigationBarItem(
-                selected = currentRoute == navItem.route,
+                selected = navItem.routes.any { route -> 
+                    currentRoute == route || 
+                    (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true)
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.Unspecified,
                     unselectedIconColor = Color.Unspecified,
-                    selectedTextColor = if (currentRoute == navItem.route) Color(0xFF854C22) else Color(0xFFE3B7A0),
+                    selectedTextColor =
+                        if (navItem.routes.contains(currentRoute)) Color(0xFF854C22)
+                        else Color(0xFFE3B7A0),
                     unselectedTextColor = Color(0xFFE3B7A0),
                     indicatorColor = Color.Transparent
                 ),
                 onClick = {
-                    navController.navigate(navItem.route) {
+                    navController.navigate(navItem.routes.first()) {
                         popUpTo(Routes.AiHealth.route) {
                             saveState = true
                         }
@@ -48,7 +55,14 @@ fun BottomNavigationBar(navController: NavController) {
                 },
                 icon = {
                     Icon(
-                        painter = painterResource(id = if (currentRoute == navItem.route) navItem.onSelectIcon else navItem.unSelectIcon),
+                        painter = painterResource(
+                            id =
+                                if (navItem.routes.any { route -> 
+                                    currentRoute == route || 
+                                    (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true)
+                                }) navItem.onSelectIcon
+                                else navItem.unSelectIcon
+                        ),
                         contentDescription = navItem.title,
                         modifier = Modifier.size(30.dp),
                         tint = Color.Unspecified
@@ -57,7 +71,12 @@ fun BottomNavigationBar(navController: NavController) {
                 label = { 
                     Text(
                         text = navItem.title,
-                        color = if (currentRoute == navItem.route) Color(0xFF854C22) else Color(0xFFE3B7A0)
+                        color =
+                            if (navItem.routes.any { route -> 
+                                currentRoute == route || 
+                                (route == "AiCheckDogEye" && currentRoute?.startsWith("AiCheckDogEye") == true)
+                            }) Color(0xFF854C22)
+                            else Color(0xFFE3B7A0)
                     )
                 }
             )

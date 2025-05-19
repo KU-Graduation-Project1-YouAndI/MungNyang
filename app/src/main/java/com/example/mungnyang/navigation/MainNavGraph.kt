@@ -43,7 +43,10 @@ fun NavGraphBuilder.mainNavGraph(navController: NavController) {
         ) { backStackEntry ->
             val encodedUri = backStackEntry.arguments?.getString("imageUri")
             val imageUri = encodedUri?.let { android.net.Uri.decode(it) }
-            AiCheckDogEye(capturedImage = imageUri)
+            AiCheckDogEye(
+                capturedImage = imageUri,
+                onNavigateAiHealth = { navController.navigate(Routes.AiHealth.route) }
+            )
         }
 //        composable(Routes.AiCheckDogSkin.route) {}
 

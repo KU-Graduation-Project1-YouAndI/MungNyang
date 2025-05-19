@@ -19,6 +19,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +29,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -42,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -49,8 +53,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.example.mungnyang.R
 import java.io.File
-import java.io.FileInputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -190,7 +194,7 @@ fun AiCameraDogEye(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(700.dp)
+                    .height(640.dp)
             ) {
                 AndroidView(  
                     modifier = Modifier.matchParentSize(),
@@ -228,50 +232,153 @@ fun AiCameraDogEye(
                         }, ContextCompat.getMainExecutor(context))
                     }
                 )
+                
+                // 상단 안내 텍스트
                 Text(
                     text = "초점에 맞춰 하단 촬영 버튼을 눌러주세요",
                     color = Color.White,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 32.dp)
-                        .background(Color(0x80000000)),
+                        .padding(top = 120.dp)
+                        .background(Color(0x80000000))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+
+                // 중앙 포커스 가이드 (눈 모양 아이콘과 테두리)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 주변 테두리 (모서리만 표시)
+                    Box(
+                        modifier = Modifier
+                            .height(180.dp)
+                            .fillMaxWidth(0.6f)
+                    ) {
+                        // 왼쪽 상단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.TopStart)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.TopStart)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.TopStart)
+                                    .background(Color.White)
+                            )
+                        }
+
+                        // 오른쪽 상단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.TopEnd)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.TopEnd)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.TopStart)
+                                    .background(Color.White)
+                            )
+                        }
+
+                        // 왼쪽 하단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.BottomStart)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.BottomStart)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.BottomStart)
+                                    .background(Color.White)
+                            )
+                        }
+
+                        // 오른쪽 하단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.BottomEnd)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.BottomEnd)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.BottomStart)
+                                    .background(Color.White)
+                            )
+                        }
+                    }
+                }
             }
 
             // 버튼들을 Row로 배치
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(36.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 갤러리 버튼
-                Button(
-                    onClick = {
-                        if (hasStoragePermission) {
-                            galleryLauncher.launch("image/*")
-                        } else {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                            } else {
-                                storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 8.dp)
-                ) {
-                    Text("갤러리")
-                }
+                // 왼쪽 빈 공간을 위한 Box
+                Box(modifier = Modifier.weight(1f)) { }
 
                 // 캡처 버튼
                 Button(
                     onClick = {
                         val imageCapture = imageCapture ?: return@Button
                         val photoFile = createImageFile(context)
-                        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+                        val outputOptions =
+                            ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
                         imageCapture.takePicture(
                             outputOptions,
@@ -287,7 +394,12 @@ fun AiCameraDogEye(
                                     val croppedFile = getMungNyangOutputFile(context)
                                     cropCenterSquareTo224(photoFile, croppedFile)
                                     // 갤러리 앱에서 보이게 미디어 스캔
-                                    MediaScannerConnection.scanFile(context, arrayOf(croppedFile.absolutePath), null, null)
+                                    MediaScannerConnection.scanFile(
+                                        context,
+                                        arrayOf(croppedFile.absolutePath),
+                                        null,
+                                        null
+                                    )
                                     val croppedUri = FileProvider.getUriForFile(
                                         context,
                                         "${context.packageName}.fileprovider",
@@ -304,11 +416,40 @@ fun AiCameraDogEye(
                             }
                         )
                     },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
+                    modifier = Modifier.height(236.dp),
+                    colors = ButtonDefaults.buttonColors(Color.Transparent)
                 ) {
-                    Text("사진 촬영")
+                    Image(
+                        painter = painterResource(id = R.drawable.camera_icon),
+                        contentDescription = null,
+                        modifier = Modifier.height(236.dp)
+                    )
+                }
+
+                // 갤러리 버튼
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Button(
+                        onClick = {
+                            if (hasStoragePermission) {
+                                galleryLauncher.launch("image/*")
+                            } else {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                                } else {
+                                    storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(Color.Transparent),
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.gallery_icon),
+                            contentDescription = null,
+                        )
+                    }
                 }
             }
         } else {

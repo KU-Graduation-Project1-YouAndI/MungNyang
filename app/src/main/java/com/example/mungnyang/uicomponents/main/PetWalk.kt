@@ -1,9 +1,12 @@
 package com.example.mungnyang.uicomponents.main
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -52,38 +55,44 @@ fun PetWalk() {
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
+            .fillMaxSize()
+            .background(Color.White)
     ) {
-        Spacer(modifier = Modifier.height(60.dp))
-
-        AndroidView(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(500.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp)),
-            factory = {
-                mapView.apply {
-                    start(object : MapLifeCycleCallback() {
-                        override fun onMapDestroy() = Unit
-                        override fun onMapError(e: Exception?) {
-                            Log.e("KakaoMap", "지도 로딩 실패", e)
-                        }
+                .padding(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(60.dp))
 
-                        override fun onMapResumed() = Unit
-                    }, object : KakaoMapReadyCallback() {
-                        override fun onMapReady(map: KakaoMap) {
-                            val seoul = LatLng.from(37.5665, 126.9780)
-                            val cameraUpdate = CameraUpdateFactory.newCenterPosition(seoul)
-                            map.moveCamera(cameraUpdate)
-                        }
-                    })
-                }
-            },
-            update = {}
-        )
+            AndroidView(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(500.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp)),
+                factory = {
+                    mapView.apply {
+                        start(object : MapLifeCycleCallback() {
+                            override fun onMapDestroy() = Unit
+                            override fun onMapError(e: Exception?) {
+                                Log.e("KakaoMap", "지도 로딩 실패", e)
+                            }
+
+                            override fun onMapResumed() = Unit
+                        }, object : KakaoMapReadyCallback() {
+                            override fun onMapReady(map: KakaoMap) {
+                                val seoul = LatLng.from(37.5665, 126.9780)
+                                val cameraUpdate = CameraUpdateFactory.newCenterPosition(seoul)
+                                map.moveCamera(cameraUpdate)
+                            }
+                        })
+                    }
+                },
+                update = {}
+            )
+        }
     }
 }

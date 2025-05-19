@@ -246,7 +246,7 @@ fun AiCheckDogSkin(
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                             append(sliceString(prediction, 9))
                         }
-                        append("이 의심됩니다")
+                        append("이(가) 의심됩니다")
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.align(Alignment.CenterHorizontally),

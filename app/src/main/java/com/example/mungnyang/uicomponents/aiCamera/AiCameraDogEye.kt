@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -231,15 +232,133 @@ fun AiCameraDogEye(
                         }, ContextCompat.getMainExecutor(context))
                     }
                 )
+                
+                // 상단 안내 텍스트
                 Text(
                     text = "초점에 맞춰 하단 촬영 버튼을 눌러주세요",
                     color = Color.White,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 32.dp)
-                        .background(Color(0x80000000)),
+                        .padding(top = 120.dp)
+                        .background(Color(0x80000000))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+
+                // 중앙 포커스 가이드 (눈 모양 아이콘과 테두리)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 주변 테두리 (모서리만 표시)
+                    Box(
+                        modifier = Modifier
+                            .height(180.dp)
+                            .fillMaxWidth(0.6f)
+                    ) {
+                        // 왼쪽 상단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.TopStart)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.TopStart)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.TopStart)
+                                    .background(Color.White)
+                            )
+                        }
+
+                        // 오른쪽 상단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.TopEnd)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.TopEnd)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.TopStart)
+                                    .background(Color.White)
+                            )
+                        }
+
+                        // 왼쪽 하단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.BottomStart)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.BottomStart)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.BottomStart)
+                                    .background(Color.White)
+                            )
+                        }
+
+                        // 오른쪽 하단 모서리
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(40.dp)
+                                .align(Alignment.BottomEnd)
+                                .background(Color.Transparent)
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .align(Alignment.BottomEnd)
+                                    .background(Color.White)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .align(Alignment.BottomStart)
+                                    .background(Color.White)
+                            )
+                        }
+                    }
+                }
             }
 
             // 버튼들을 Row로 배치

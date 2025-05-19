@@ -8,7 +8,7 @@ object NavBarItems {
             title = "AI 건강검진",
             onSelectIcon = R.drawable.health_on,
             unSelectIcon = R.drawable.health_off,
-            routes = listOf("AiHealth", "AiCheckDogEye")
+            routes = listOf("AiHealth", "AiCheckDogEye", "AiCheckDogSkin")
         ),
         BarItem(
             title = "펫 캘린더",

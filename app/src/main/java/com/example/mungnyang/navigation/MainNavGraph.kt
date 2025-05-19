@@ -10,6 +10,7 @@ import com.example.mungnyang.model.Routes
 import com.example.mungnyang.uicomponents.aiCamera.AiCameraDogEye
 import com.example.mungnyang.uicomponents.aiCamera.AiCameraDogSkin
 import com.example.mungnyang.uicomponents.aiCamera.AiCheckDogEye
+import com.example.mungnyang.uicomponents.aiCamera.AiCheckDogSkin
 import com.example.mungnyang.uicomponents.main.AiHealth
 import com.example.mungnyang.uicomponents.main.PetCalendar
 import com.example.mungnyang.uicomponents.main.PetLog
@@ -34,9 +35,6 @@ fun NavGraphBuilder.mainNavGraph(navController: NavController) {
                 }
             )
         }
-        composable(Routes.AiCameraDogSkin.route) {
-            AiCameraDogSkin()
-        }
         composable(
             route = Routes.AiCheckDogEye().route + "/{imageUri}",
             arguments = listOf(navArgument("imageUri") { type = NavType.StringType })
@@ -48,7 +46,26 @@ fun NavGraphBuilder.mainNavGraph(navController: NavController) {
                 onNavigateAiHealth = { navController.navigate(Routes.AiHealth.route) }
             )
         }
-//        composable(Routes.AiCheckDogSkin.route) {}
+
+        composable(Routes.AiCameraDogSkin.route) {
+            AiCameraDogSkin(
+                onCaptureSuccess = { imageUri ->
+                    val encodedUri = android.net.Uri.encode(imageUri)
+                    navController.navigate(Routes.AiCheckDogSkin().route + "/$encodedUri")
+                }
+            )
+        }
+        composable(
+            route = Routes.AiCheckDogSkin().route + "/{imageUri}",
+            arguments = listOf(navArgument("imageUri") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val encodedUri = backStackEntry.arguments?.getString("imageUri")
+            val imageUri = encodedUri?.let { android.net.Uri.decode(it) }
+            AiCheckDogSkin(
+                capturedImage = imageUri,
+                onNavigateAiHealth = { navController.navigate(Routes.AiHealth.route) }
+            )
+        }
 
         composable(Routes.PetCalendar.route) {
             PetCalendar()

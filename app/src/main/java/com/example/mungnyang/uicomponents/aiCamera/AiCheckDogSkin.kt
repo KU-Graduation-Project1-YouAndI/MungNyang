@@ -185,7 +185,7 @@ fun AiCheckDogSkin(
     // 컴포저블이 처음 실행될 때만 모델을 로드
     DisposableEffect(key1 = context) {
         try {
-            val modelBuffer = loadModelFile(assetManager = context.assets, modelFileName = "model2.tflite")
+            val modelBuffer = loadModelFile(assetManager = context.assets, modelFileName = "model.tflite")
             if (modelBuffer != null) {
                 tflite = Interpreter(modelBuffer)
                 isModelLoaded = true

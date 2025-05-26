@@ -58,17 +58,24 @@ private fun sliceProbability(input: String): String {
     return input.substring(index)
 }
 
-private fun loadBitmap(context: android.content.Context, uriString: String): android.graphics.Bitmap? {
-    return try {
+private fun loadBitmap(context: Context, uriString: String): Bitmap? {
+    var inputStream: FileInputStream? = null
+    try {
         val uri = Uri.parse(uriString)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
         } else {
             MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
         }
     } catch (e: Exception) {
         Log.e("AiCheckDogEye", "이미지 로드 실패", e)
-        null
+        return null
+    } finally {
+        try {
+            inputStream?.close()
+        } catch (e: IOException) {
+            Log.e("AiCheckDogEye", "스트림 닫기 실패", e)
+        }
     }
 }
 
@@ -129,17 +136,25 @@ private fun runModelInference(tflite: Interpreter?, bitmap: Bitmap): String {
 }
 
 private fun preprocessBitmap(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
-    // 하드웨어 가속 비트맵을 소프트웨어 비트맵으로 변환
-    val softwareBitmap = if (bitmap.config == Bitmap.Config.HARDWARE) {
-        bitmap.copy(Bitmap.Config.ARGB_8888, true)
-    } else {
-        bitmap
-    }
-    
-    val resizedBitmap = Bitmap.createScaledBitmap(softwareBitmap, 224, 224, true) // Adjust size based on your model
-    val input = Array(1) { Array(224) { Array(224) { FloatArray(3) } } }
+    var softwareBitmap: Bitmap? = null
+    var resizedBitmap: Bitmap? = null
     
     try {
+        // 하드웨어 가속 비트맵을 소프트웨어 비트맵으로 변환
+        softwareBitmap = if (bitmap.config == Bitmap.Config.HARDWARE) {
+            bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        } else {
+            bitmap
+        }
+        
+        if (softwareBitmap != null) {
+            resizedBitmap = Bitmap.createScaledBitmap(softwareBitmap, 224, 224, true)
+        } else {
+            throw IllegalArgumentException("softwareBitmap is null")
+        }
+        
+        val input = Array(1) { Array(224) { Array(224) { FloatArray(3) } } }
+        
         for (x in 0 until 224) {
             for (y in 0 until 224) {
                 val pixel = resizedBitmap.getPixel(x, y)
@@ -149,19 +164,19 @@ private fun preprocessBitmap(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
             }
         }
         
-        // 원본 비트맵과 다른 경우 리사이즈된 비트맵 리소스 해제
-        if (softwareBitmap != bitmap) {
-            softwareBitmap.recycle()
-        }
-        if (resizedBitmap != softwareBitmap) {
-            resizedBitmap.recycle()
-        }
+        return input
     } catch (e: Exception) {
         Log.e("AiCheckDogEye", "비트맵 전처리 중 오류 발생", e)
         throw e
+    } finally {
+        // 리소스 정리
+        if (softwareBitmap != null && softwareBitmap != bitmap) {
+            softwareBitmap.recycle()
+        }
+        if (resizedBitmap != null && resizedBitmap != softwareBitmap) {
+            resizedBitmap.recycle()
+        }
     }
-    
-    return input
 }
 //=======================================================================
 
@@ -172,34 +187,46 @@ fun AiCheckDogEye(
     onNavigateAiHealth: ()->Unit
 ) {
     val context = LocalContext.current
-    var bitmap = remember(capturedImage) {
-        capturedImage?.let { loadBitmap(context, it) }
+    var bitmap by remember(capturedImage) {
+        mutableStateOf(capturedImage?.let { loadBitmap(context, it) })
     }
 
     // TFLite 인터프리터를 remember를 사용해 한 번만 초기화
     var tflite by remember { mutableStateOf<Interpreter?>(null) }
+    
     var isModelLoaded by remember { mutableStateOf(false) }
     var prediction by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
     
     // 컴포저블이 처음 실행될 때만 모델을 로드
     DisposableEffect(key1 = context) {
+        var interpreter: Interpreter? = null
         try {
-            val modelBuffer = loadModelFile(assetManager = context.assets, modelFileName = "model2.tflite")
+            val modelBuffer = loadModelFile(assetManager = context.assets, modelFileName = "model.tflite")
             if (modelBuffer != null) {
-                tflite = Interpreter(modelBuffer)
+                val options = Interpreter.Options()
+                options.setNumThreads(4) // 스레드 수 설정
+                interpreter = Interpreter(modelBuffer, options)
+                tflite = interpreter
                 isModelLoaded = true
+                errorMessage = "" // 성공 시 에러 메시지 초기화
             } else {
                 errorMessage = "모델 파일을 로드할 수 없습니다."
+                Log.e("AiCheckDogEye", "모델 파일 로드 실패")
             }
         } catch (e: Exception) {
             Log.e("AiCheckDogEye", "TFLite 인터프리터 초기화 실패", e)
             errorMessage = "모델 초기화 중 오류가 발생했습니다: ${e.message}"
         }
         
-        // 컴포저블이 제거될 때 인터프리터 해제
         onDispose {
-            tflite?.close()
+            try {
+                interpreter?.close()
+                tflite = null
+                bitmap?.let { it.recycle() }
+            } catch (e: Exception) {
+                Log.e("AiCheckDogEye", "리소스 정리 중 오류 발생", e)
+            }
         }
     }
 
@@ -214,7 +241,7 @@ fun AiCheckDogEye(
         Column(modifier = Modifier.padding(16.dp)) {
             if (bitmap != null && isModelLoaded) {
                 try {
-                    prediction = runModelInference(tflite, bitmap)
+                    prediction = runModelInference(tflite, bitmap!!)
                     errorMessage = "" // 성공 시 에러 메시지 초기화
                 } catch (e: Exception) {
                     Log.e("AiCheckDogEye", "예측 실행 중 오류", e)
@@ -228,9 +255,9 @@ fun AiCheckDogEye(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            bitmap?.let {
+            bitmap?.let { currentBitmap ->
                 Image(
-                    bitmap = it.asImageBitmap(),
+                    bitmap = currentBitmap.asImageBitmap(),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()

@@ -59,6 +59,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 @Composable
 fun AiCameraDogSkin(
@@ -189,6 +190,7 @@ fun AiCameraDogSkin(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFFFF2C2))
+            .navigationBarsPadding()
     ) {
         if (hasCameraPermission) {
             Box(
@@ -365,13 +367,11 @@ fun AiCameraDogSkin(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(36.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(start = 36.dp, end = 36.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.Bottom
             ) {
-                // 왼쪽 빈 공간을 위한 Box
                 Box(modifier = Modifier.weight(1f)) { }
-
                 // 캡처 버튼
                 Button(
                     onClick = {
@@ -425,30 +425,31 @@ fun AiCameraDogSkin(
                         modifier = Modifier.height(236.dp)
                     )
                 }
-
                 // 갤러리 버튼
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
-                    Button(
-                        onClick = {
-                            if (hasStoragePermission) {
-                                galleryLauncher.launch("image/*")
-                            } else {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                    storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                                } else {
-                                    storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(Color.Transparent),
+                Box(modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterEnd
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.gallery_icon),
-                            contentDescription = null,
-                        )
+                        Button(
+                            onClick = {
+                                if (hasStoragePermission) {
+                                    galleryLauncher.launch("image/*")
+                                } else {
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                        storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                                    } else {
+                                        storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(Color.Transparent),
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.gallery_icon),
+                                contentDescription = null,
+                            )
+                        }
                     }
                 }
             }

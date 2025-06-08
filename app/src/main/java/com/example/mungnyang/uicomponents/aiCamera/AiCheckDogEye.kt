@@ -65,10 +65,14 @@ private fun loadBitmap(context: Context, uriString: String): Bitmap? {
     var inputStream: FileInputStream? = null
     try {
         val uri = Uri.parse(uriString)
+        // 원본 이미지 URI에서 AI 이미지 URI로 변환
+        val aiUriString = uriString.replace("original_", "ai_")
+        val aiUri = Uri.parse(aiUriString)
+        
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, aiUri))
         } else {
-            MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+            MediaStore.Images.Media.getBitmap(context.contentResolver, aiUri)
         }
     } catch (e: Exception) {
         Log.e("AiCheckDogEye", "이미지 로드 실패", e)

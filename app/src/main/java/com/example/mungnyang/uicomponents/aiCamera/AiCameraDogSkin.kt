@@ -390,23 +390,30 @@ fun AiCameraDogSkin(
                                         "${context.packageName}.fileprovider",
                                         photoFile
                                     )
-                                    // 저장 경로를 Pictures/MungNyang/로 지정
-                                    val croppedFile = getMungNyangOutputFile(context)
-                                    cropCenterSquareTo224(photoFile, croppedFile)
+                                    // 원본 이미지 저장
+                                    val originalFile = getMungNyangOutputFile(context, "original_")
+                                    photoFile.copyTo(originalFile, overwrite = true)
+                                    
+                                    // AI 처리를 위한 224x224 이미지 저장
+                                    val aiFile = getMungNyangOutputFile(context, "ai_")
+                                    cropCenterSquareTo224(photoFile, aiFile)
+                                    
                                     // 갤러리 앱에서 보이게 미디어 스캔
                                     MediaScannerConnection.scanFile(
                                         context,
-                                        arrayOf(croppedFile.absolutePath),
+                                        arrayOf(originalFile.absolutePath, aiFile.absolutePath),
                                         null,
                                         null
                                     )
-                                    val croppedUri = FileProvider.getUriForFile(
+                                    
+                                    val originalUri = FileProvider.getUriForFile(
                                         context,
                                         "${context.packageName}.fileprovider",
-                                        croppedFile
+                                        originalFile
                                     )
+                                    
                                     Handler(Looper.getMainLooper()).post {
-                                        onCaptureSuccess(croppedUri.toString())
+                                        onCaptureSuccess(originalUri.toString())
                                     }
                                 }
 
@@ -487,18 +494,19 @@ private fun cropCenterSquareTo224(inputFile: File, outputFile: File) {
         else -> bitmap
     }
 
-    // 3. 중앙 크롭
+    // 3. 중앙 크롭 (더 큰 해상도로 유지)
     val size = minOf(rotatedBitmap.width, rotatedBitmap.height)
     val x = (rotatedBitmap.width - size) / 2
     val y = (rotatedBitmap.height - size) / 2
     val squareBitmap = Bitmap.createBitmap(rotatedBitmap, x, y, size, size)
-    val resizedBitmap = Bitmap.createScaledBitmap(squareBitmap, 224, 224, true)
+    
+    // 4. 원본 해상도를 유지하면서 저장
     outputFile.outputStream().use { out ->
-        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+        squareBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
     }
+    
     if (rotatedBitmap != bitmap) bitmap.recycle()
     squareBitmap.recycle()
-    resizedBitmap.recycle()
     rotatedBitmap.recycle()
 }
 
@@ -509,9 +517,54 @@ private fun Bitmap.rotate(degrees: Float): Bitmap {
     return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
 }
 
-private fun getMungNyangOutputFile(context: Context): File { // 해당경로에 이미지 저장(/storage/emulated/0/Pictures/MungNyang/)
+private fun getMungNyangOutputFile(context: Context, prefix: String = ""): File {
     val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MungNyang")
     if (!dir.exists()) dir.mkdirs()
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    return File(dir, "cropped_$timeStamp.jpg")
+    return File(dir, "${prefix}${timeStamp}.jpg")
+}
+
+private fun preprocessBitmap(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
+    var softwareBitmap: Bitmap? = null
+    var resizedBitmap: Bitmap? = null
+    
+    try {
+        // 하드웨어 가속 비트맵을 소프트웨어 비트맵으로 변환
+        softwareBitmap = if (bitmap.config == Bitmap.Config.HARDWARE) {
+            bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        } else {
+            bitmap
+        }
+        
+        if (softwareBitmap != null) {
+            // AI 모델 입력을 위해 224x224로 리사이즈
+            resizedBitmap = Bitmap.createScaledBitmap(softwareBitmap, 224, 224, true)
+        } else {
+            throw IllegalArgumentException("softwareBitmap is null")
+        }
+        
+        val input = Array(1) { Array(224) { Array(224) { FloatArray(3) } } }
+        
+        for (x in 0 until 224) {
+            for (y in 0 until 224) {
+                val pixel = resizedBitmap.getPixel(x, y)
+                input[0][x][y][0] = (pixel shr 16 and 0xFF) / 255.0f
+                input[0][x][y][1] = (pixel shr 8 and 0xFF) / 255.0f
+                input[0][x][y][2] = (pixel and 0xFF) / 255.0f
+            }
+        }
+        
+        return input
+    } catch (e: Exception) {
+        Log.e("AiCheckDogSkin", "비트맵 전처리 중 오류 발생", e)
+        throw e
+    } finally {
+        // 리소스 정리
+        if (softwareBitmap != null && softwareBitmap != bitmap) {
+            softwareBitmap.recycle()
+        }
+        if (resizedBitmap != null && resizedBitmap != softwareBitmap) {
+            resizedBitmap.recycle()
+        }
+    }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.mungnyang.model.fd.FederateLearning
 import org.tensorflow.lite.Interpreter
 import java.io.IOException
 
@@ -40,6 +41,7 @@ fun ImagePredictionUI(
 
             bitmap?.let {
                 prediction = runModelInference(tflite, it)
+                FederateLearning.runTraining(it, tflite, context)
             }
         }) {
             Text("Run Prediction")

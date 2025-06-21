@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mungnyang.model.fd.FederateLearning
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.io.IOException
@@ -220,6 +221,22 @@ fun AiCheckDogSkin(
                 try {
                     prediction = runModelInference(tflite, bitmap)
                     errorMessage = "" // 성공 시 에러 메시지 초기화
+
+                    Thread {
+                        try {
+                            val modelBuffer = loadModelFile(context.assets, "model.tflite")
+                            if (modelBuffer != null) {
+                                val trainingInterpreter = Interpreter(modelBuffer)
+                                FederateLearning.runTraining(bitmap, trainingInterpreter, context)
+                                trainingInterpreter.close()
+                            } else {
+                                Log.e("AiCheckDogSkin", "학습용 모델 로드 실패: modelBuffer == null")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AiCheckDogSkin", "연합학습 중 오류", e)
+                        }
+                    }.start()
+
                 } catch (e: Exception) {
                     Log.e("AiCheckDogSkin", "예측 실행 중 오류", e)
                     errorMessage = "예측 실행 중 오류가 발생했습니다: ${e.message}"

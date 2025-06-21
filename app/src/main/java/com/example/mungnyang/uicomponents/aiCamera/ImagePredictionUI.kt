@@ -1,5 +1,6 @@
 package com.example.mungnyang.uicomponents.aiCamera
 
+import android.util.Log
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -41,6 +42,7 @@ fun ImagePredictionUI(
 
             bitmap?.let {
                 prediction = runModelInference(tflite, it)
+                Log.d("CHECK", "📦 runTraining 호출됨")
                 FederateLearning.runTraining(it, tflite, context)
             }
         }) {

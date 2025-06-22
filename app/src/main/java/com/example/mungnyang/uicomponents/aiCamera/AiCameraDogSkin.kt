@@ -5,11 +5,15 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.media.ExifInterface
 import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -391,17 +395,13 @@ fun AiCameraDogSkin(
                                         photoFile
                                     )
                                     // 원본 이미지 저장
-                                    val originalFile = getMungNyangOutputFile(context, "original_")
+                                    val originalFile = getMungNyangOutputFile(context)
                                     photoFile.copyTo(originalFile, overwrite = true)
-                                    
-                                    // AI 처리를 위한 224x224 이미지 저장
-                                    val aiFile = getMungNyangOutputFile(context, "ai_")
-                                    cropCenterSquareTo224(photoFile, aiFile)
                                     
                                     // 갤러리 앱에서 보이게 미디어 스캔
                                     MediaScannerConnection.scanFile(
                                         context,
-                                        arrayOf(originalFile.absolutePath, aiFile.absolutePath),
+                                        arrayOf(originalFile.absolutePath),
                                         null,
                                         null
                                     )
@@ -566,5 +566,20 @@ private fun preprocessBitmap(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
         if (resizedBitmap != null && resizedBitmap != softwareBitmap) {
             resizedBitmap.recycle()
         }
+    }
+}
+
+private fun loadBitmap(context: android.content.Context, uriString: String): android.graphics.Bitmap? {
+    return try {
+        val uri = Uri.parse(uriString)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+        } else {
+            @Suppress("DEPRECATION")
+            MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+        }
+    } catch (e: Exception) {
+        Log.e("AiCheckDogSkin", "이미지 로드 실패", e)
+        null
     }
 }

@@ -302,6 +302,7 @@ fun PetWalk(
                         Button(
                             onClick = {
                                 if (allPermissionsGranted) {
+                                    startTime = System.currentTimeMillis()
                                     isWalking = true
                                 } else {
                                     permissionsState.launchMultiplePermissionRequest()
@@ -452,6 +453,7 @@ fun PetWalk(
                     Button(
                         onClick = {
                             if (allPermissionsGranted) {
+                                startTime = System.currentTimeMillis()
                                 isWalking = true
                             } else {
                                 permissionsState.launchMultiplePermissionRequest()

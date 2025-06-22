@@ -1,11 +1,13 @@
 package com.example.mungnyang.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mungnyang.model.WalkRecord
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -15,8 +17,12 @@ class WalkRecordViewModel : ViewModel() {
 
     fun addWalkRecord(record: WalkRecord) {
         viewModelScope.launch {
-            // 새로운 기록을 맨 앞에 추가 (최신순 정렬)
-            _walkRecords.value = listOf(record) + _walkRecords.value
+            if (_walkRecords.value.isNotEmpty()) {
+                Log.i("ddd", "이미 데이터가 있어서 샘플 데이터를 추가하지 않습니다.")
+                return@launch
+            }
+            _walkRecords.update { it + record }
+            Log.i("ddd", walkRecords.toString())
         }
     }
 

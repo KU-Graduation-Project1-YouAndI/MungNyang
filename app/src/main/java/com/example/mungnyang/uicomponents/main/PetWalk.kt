@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,7 +39,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mungnyang.R
+import com.example.mungnyang.model.WalkRecord
+import com.example.mungnyang.viewmodel.WalkRecordViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -59,6 +63,9 @@ import com.naver.maps.map.compose.rememberMarkerState
 import com.naver.maps.map.overlay.OverlayImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 // 거리 계산 함수
@@ -76,7 +83,12 @@ fun calculateDistance(start: LatLng, end: LatLng): Double {
 
 @OptIn(ExperimentalNaverMapApi::class, ExperimentalPermissionsApi::class)
 @Composable
-fun PetWalk() {
+fun PetWalk(
+    viewModel: WalkRecordViewModel = viewModel()
+) {
+    // ViewModel의 walkRecords 상태를 관찰
+    val walkRecords by viewModel.walkRecords.collectAsState()
+
     val permissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -105,6 +117,9 @@ fun PetWalk() {
     var startTime by remember { mutableStateOf(0L) }
     var elapsedTime by remember { mutableStateOf(0L) }
 
+    // 마지막 산책 기록을 저장하는 상태 추가
+    var lastWalkRecord by remember { mutableStateOf<WalkRecord?>(null) }
+
     // 마커 상태를 remember로 관리
     val markerState = rememberMarkerState()
 
@@ -121,27 +136,28 @@ fun PetWalk() {
     LaunchedEffect(allPermissionsGranted) {
         if (allPermissionsGranted) {
             try {
-                @Suppress("MissingPermission") // 권한 체크는 allPermissionsGranted로 이미 수행됨
+                @Suppress("MissingPermission")
                 val location = fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
                 location?.let {
                     val currentLatLng = LatLng(it.latitude, it.longitude)
                     currentUserLocation = currentLatLng
-                    cameraPositionState.position = CameraPosition(currentLatLng, 15.0) // 줌 레벨 15로 카메라 이동
+                    cameraPositionState.position = CameraPosition(currentLatLng, 15.0)
                 }
             } catch (e: SecurityException) {
-                // 권한 관련 예외 처리 (예: 사용자에게 알림)
+                // 권한 관련 예외 처리
             } catch (e: Exception) {
                 // 기타 예외 처리
             }
         }
     }
 
-    // 위치 추적 및 경로, 거리 계산 (currentUserLocation 업데이트 로직은 동일)
+    // 위치 추적 및 경로, 거리 계산
     LaunchedEffect(isWalking, allPermissionsGranted) {
         if (isWalking && allPermissionsGranted) {
             hasWalkedOnce = true
             startTime = System.currentTimeMillis()
             totalDistance = 0.0
+            pathCoords = emptyList() // 경로 초기화
 
             try {
                 @Suppress("MissingPermission")
@@ -149,11 +165,11 @@ fun PetWalk() {
                 initialLocation?.let {
                     val initialLatLng = LatLng(it.latitude, it.longitude)
                     pathCoords = listOf(initialLatLng)
-                    currentUserLocation = initialLatLng // currentUserLocation 업데이트
-                    markerState.position = initialLatLng // 마커 상태의 position 직접 업데이트
+                    currentUserLocation = initialLatLng
+                    markerState.position = initialLatLng
                 }
             } catch (e: Exception) {
-                // ...
+                // 예외 처리
             }
 
             while (isWalking) {
@@ -162,12 +178,15 @@ fun PetWalk() {
                     val location = fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
                     location?.let {
                         val newLatLng = LatLng(it.latitude, it.longitude)
-                        currentUserLocation = newLatLng // currentUserLocation 업데이트
-                        markerState.position = newLatLng // 마커 상태의 position 직접 업데이트 <--- 중요!
+                        currentUserLocation = newLatLng
+                        markerState.position = newLatLng
+
                         if (pathCoords.isNotEmpty()) {
                             val prev = pathCoords.last()
-                            if (prev != newLatLng) {
-                                totalDistance += calculateDistance(prev, newLatLng)
+                            val distance = calculateDistance(prev, newLatLng)
+                            // 최소 이동 거리 체크 (5미터 이상일 때만 추가)
+                            if (distance >= 5.0) {
+                                totalDistance += distance
                                 pathCoords = pathCoords + newLatLng
                             }
                         } else {
@@ -175,9 +194,9 @@ fun PetWalk() {
                         }
                     }
                 } catch (e: Exception) {
-                    // ...
+                    // 예외 처리
                 }
-                delay(1000)
+                delay(2000) // 2초마다 위치 업데이트
                 elapsedTime = System.currentTimeMillis() - startTime
             }
         }
@@ -193,9 +212,10 @@ fun PetWalk() {
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(60.dp)) // 상단 여백
+            Spacer(modifier = Modifier.height(60.dp))
 
-            if (!isWalking && pathCoords.isNotEmpty() && elapsedTime > 0) {
+            // 마지막 산책 기록 표시 (산책 중이 아니고, 기록이 있을 때)
+            if (!isWalking && lastWalkRecord != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -216,13 +236,20 @@ fun PetWalk() {
                             color = Color(0xFF854C22)
                         )
 
-                        Text("시간")
+                        Text(
+                            text = SimpleDateFormat("yyyy년 MM월 dd일 HH시 mm분", Locale.getDefault())
+                                .format(Date(lastWalkRecord!!.date.time)),
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Image(
                             painter = painterResource(id = R.drawable.shiba),
                             contentDescription = null,
                             modifier = Modifier.width(70.dp).height(70.dp)
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -235,7 +262,7 @@ fun PetWalk() {
                                     color = Color(0xFFE3B7A0)
                                 )
                                 Text(
-                                    text = "${"%.2f".format(totalDistance)}",
+                                    text = "${"%.0f".format(lastWalkRecord!!.distance)}",
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF854C22)
@@ -247,8 +274,8 @@ fun PetWalk() {
                                 )
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                val minutes = TimeUnit.MILLISECONDS.toMinutes(elapsedTime)
-                                val seconds = TimeUnit.MILLISECONDS.toSeconds(elapsedTime) % 60
+                                val minutes = TimeUnit.MILLISECONDS.toMinutes(lastWalkRecord!!.duration)
+                                val seconds = TimeUnit.MILLISECONDS.toSeconds(lastWalkRecord!!.duration) % 60
                                 val timeFormatted = String.format("%02d:%02d", minutes, seconds)
 
                                 Text(
@@ -263,8 +290,8 @@ fun PetWalk() {
                                     color = Color(0xFF854C22)
                                 )
                                 Text(
-                                    text = "분",
-                                    fontSize = 22.sp,
+                                    text = "분:초",
+                                    fontSize = 12.sp,
                                     color = Color(0xFFE3B7A0)
                                 )
                             }
@@ -276,16 +303,11 @@ fun PetWalk() {
                             onClick = {
                                 if (allPermissionsGranted) {
                                     isWalking = true
-                                    // 산책 시작 시, 경로 및 시간/거리 초기화 (필요하다면 LaunchedEffect에서 이미 처리)
-                                    // pathCoords = emptyList()
-                                    // totalDistance = 0.0
-                                    // elapsedTime = 0L
-                                    // startTime = System.currentTimeMillis() // LaunchedEffect에서 처리
                                 } else {
                                     permissionsState.launchMultiplePermissionRequest()
                                 }
                             },
-                            enabled = allPermissionsGranted, // 권한이 있을 때만 활성화
+                            enabled = allPermissionsGranted,
                             modifier = Modifier
                                 .width(200.dp)
                                 .height(50.dp),
@@ -304,28 +326,25 @@ fun PetWalk() {
                 Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // isWalking 상태에 따라 NaverMap의 높이를 동적으로 설정
-            val mapHeight =
-                if (isWalking || !hasWalkedOnce) { 500.dp }
-                else { 250.dp }
+            // 지도 높이 설정
+            val mapHeight = if (isWalking || lastWalkRecord == null) 500.dp else 250.dp
 
             if (allPermissionsGranted) {
-                // NaverMap Composable
                 NaverMap(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(mapHeight) // 지도의 높이 설정
+                        .height(mapHeight)
                         .clip(RoundedCornerShape(16.dp))
-                        .border(width = 1.dp, color = Color.Gray, shape = RoundedCornerShape(16.dp)), // 테두리 추가
-                    cameraPositionState = cameraPositionState, // 카메라 위치 상태
-                    locationSource = locationSource, // FusedLocationSource 설정
+                        .border(width = 1.dp, color = Color.Gray, shape = RoundedCornerShape(16.dp)),
+                    cameraPositionState = cameraPositionState,
+                    locationSource = locationSource,
                     properties = MapProperties(
                         locationTrackingMode = LocationTrackingMode.Face,
                         maxZoom = 18.0,
                         minZoom = 5.0
                     ),
                     uiSettings = MapUiSettings(
-                        isLocationButtonEnabled = true, // 현재 위치 버튼 활성화
+                        isLocationButtonEnabled = true,
                         isCompassEnabled = true,
                         isZoomControlEnabled = true,
                         isScrollGesturesEnabled = true,
@@ -333,30 +352,27 @@ fun PetWalk() {
                         isTiltGesturesEnabled = true,
                         isRotateGesturesEnabled = true,
                         isStopGesturesEnabled = true,
-                        logoGravity = Gravity.BOTTOM or Gravity.START // 로고 위치 변경 (예시)
+                        logoGravity = Gravity.BOTTOM or Gravity.START
                     )
                 ) {
-                    // 현재 사용자 위치에 마커 표시
                     currentUserLocation?.let { position ->
                         Marker(
                             state = markerState,
                             icon = OverlayImage.fromResource(R.drawable.shiba),
-                            width = 40.dp, // 마커 너비
-                            height = 50.dp, // 마커 높이
+                            width = 40.dp,
+                            height = 50.dp,
                         )
                     }
 
-                    // 산책 경로 표시 (pathCoords가 두 개 이상의 좌표를 가질 때)
                     if (pathCoords.size >= 2) {
                         PolylineOverlay(
                             coords = pathCoords,
-                            width = 5.dp, // 경로 선의 두께
-                            color = Color(0xFFBF9270) // 경로 선의 색상
+                            width = 5.dp,
+                            color = Color(0xFFBF9270)
                         )
                     }
                 }
             } else {
-                // 권한이 없을 때 보여줄 화면 또는 메시지
                 Text(
                     text = "위치 권한이 필요합니다. 앱 설정에서 권한을 허용해주세요.",
                     modifier = Modifier
@@ -365,20 +381,19 @@ fun PetWalk() {
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp)) // 지도와 버튼 사이 여백
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 산책 중 UI와 시작 버튼 UI를 isWalking 상태에 따라 분기
+            // UI 분기 처리
             if (isWalking) {
-                // 산책 중일 때: 거리, 중지 버튼, 시간 표시
+                // 산책 중 UI
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // 총 거리
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${"%.2f".format(totalDistance)}m",
+                            text = "${"%.0f".format(totalDistance)}m",
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF854C22)
@@ -397,7 +412,7 @@ fun PetWalk() {
                             contentDescription = null,
                             modifier = Modifier
                                 .clickable {
-                                    showStopWalkingDialog = true // 중지 확인 다이얼로그 표시
+                                    showStopWalkingDialog = true
                                 }
                                 .height(50.dp).width(50.dp)
                         )
@@ -409,13 +424,12 @@ fun PetWalk() {
                         )
                     }
 
-                    // 소요 시간
                     val minutes = TimeUnit.MILLISECONDS.toMinutes(elapsedTime)
-                    val seconds = TimeUnit.MILLISECONDS.toSeconds(elapsedTime) % 60 // 분을 제외한 나머지 초
+                    val seconds = TimeUnit.MILLISECONDS.toSeconds(elapsedTime) % 60
                     val timeFormatted = String.format("%02d:%02d", minutes, seconds)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "$timeFormatted",
+                            text = timeFormatted,
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF854C22)
@@ -428,8 +442,8 @@ fun PetWalk() {
                         )
                     }
                 }
-            } else if (!hasWalkedOnce) {
-                // 산책 시작 전일 때: 산책 시작 버튼 표시
+            } else if (lastWalkRecord == null) {
+                // 첫 산책 시작 버튼
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -439,16 +453,11 @@ fun PetWalk() {
                         onClick = {
                             if (allPermissionsGranted) {
                                 isWalking = true
-                                // 산책 시작 시, 경로 및 시간/거리 초기화 (필요하다면 LaunchedEffect에서 이미 처리)
-                                // pathCoords = emptyList()
-                                // totalDistance = 0.0
-                                // elapsedTime = 0L
-                                // startTime = System.currentTimeMillis() // LaunchedEffect에서 처리
                             } else {
                                 permissionsState.launchMultiplePermissionRequest()
                             }
                         },
-                        enabled = allPermissionsGranted, // 권한이 있을 때만 활성화
+                        enabled = allPermissionsGranted,
                         modifier = Modifier
                             .width(200.dp)
                             .height(50.dp),
@@ -468,7 +477,7 @@ fun PetWalk() {
             if (showStopWalkingDialog) {
                 AlertDialog(
                     onDismissRequest = {
-                        showStopWalkingDialog = false // 다이얼로그 밖을 클릭해도 닫히도록
+                        showStopWalkingDialog = false
                     },
                     title = {
                         Image(
@@ -482,9 +491,25 @@ fun PetWalk() {
                     confirmButton = {
                         TextButton(
                             onClick = {
+                                // 산책 기록 생성 및 저장
+                                val walkRecord = WalkRecord(
+                                    distance = totalDistance,
+                                    duration = System.currentTimeMillis() - startTime,
+                                    date = Date(startTime)
+                                )
+
+                                // ViewModel에 저장
+                                viewModel.addWalkRecord(walkRecord)
+
+                                // 마지막 산책 기록 업데이트
+                                lastWalkRecord = walkRecord
+
+                                // 상태 초기화
                                 isWalking = false
                                 showStopWalkingDialog = false
-                                // 필요하다면 여기서 산책 데이터 저장 등의 추가 로직 수행
+                                pathCoords = emptyList()
+                                totalDistance = 0.0
+                                elapsedTime = 0L
                             }
                         ) {
                             Text("산책 종료다멍", color = Color.Red)
@@ -505,69 +530,3 @@ fun PetWalk() {
         }
     }
 }
-
-//@Preview
-//@Composable
-//fun PetWalk() {
-//    val context = LocalContext.current
-//    val lifecycleOwner = LocalLifecycleOwner.current
-//
-//    val mapView = remember { MapView(context) }
-//
-//    // 라이프사이클 관리
-//    DisposableEffect(lifecycleOwner) {
-//        val observer = LifecycleEventObserver { _, event ->
-//            when (event) {
-//                Lifecycle.Event.ON_RESUME -> mapView.resume()
-//                Lifecycle.Event.ON_PAUSE -> mapView.pause()
-//                else -> {}
-//            }
-//        }
-//        lifecycleOwner.lifecycle.addObserver(observer)
-//        onDispose {
-//            lifecycleOwner.lifecycle.removeObserver(observer)
-//            mapView.finish()
-//        }
-//    }
-//
-//    Box(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .background(Color.White)
-//    ) {
-//        Column(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(16.dp)
-//        ) {
-//            Spacer(modifier = Modifier.height(60.dp))
-//
-//            AndroidView(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .height(500.dp)
-//                    .clip(RoundedCornerShape(16.dp))
-//                    .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp)),
-//                factory = {
-//                    mapView.apply {
-//                        start(object : MapLifeCycleCallback() {
-//                            override fun onMapDestroy() = Unit
-//                            override fun onMapError(e: Exception?) {
-//                                Log.e("KakaoMap", "지도 로딩 실패", e)
-//                            }
-//
-//                            override fun onMapResumed() = Unit
-//                        }, object : KakaoMapReadyCallback() {
-//                            override fun onMapReady(map: KakaoMap) {
-//                                val seoul = LatLng.from(37.5665, 126.9780)
-//                                val cameraUpdate = CameraUpdateFactory.newCenterPosition(seoul)
-//                                map.moveCamera(cameraUpdate)
-//                            }
-//                        })
-//                    }
-//                },
-//                update = {}
-//            )
-//        }
-//    }
-//}

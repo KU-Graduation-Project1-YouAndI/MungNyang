@@ -15,6 +15,8 @@ import com.example.mungnyang.uicomponents.main.AiHealth
 import com.example.mungnyang.uicomponents.main.PetCalendar
 import com.example.mungnyang.uicomponents.main.PetLog
 import com.example.mungnyang.uicomponents.main.PetWalk
+import com.example.mungnyang.viewmodel.WalkRecordViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 fun NavGraphBuilder.mainNavGraph(navController: NavController) {
     navigation(
@@ -71,10 +73,12 @@ fun NavGraphBuilder.mainNavGraph(navController: NavController) {
             PetCalendar()
         }
         composable(Routes.PetWalk.route) {
-            PetWalk()
+            val viewModel: WalkRecordViewModel = viewModel()
+            PetWalk(viewModel = viewModel)
         }
         composable(Routes.PetLog.route) {
-            PetLog()
+            val viewModel: WalkRecordViewModel = viewModel()
+            PetLog(viewModel = viewModel)
         }
     }
 }

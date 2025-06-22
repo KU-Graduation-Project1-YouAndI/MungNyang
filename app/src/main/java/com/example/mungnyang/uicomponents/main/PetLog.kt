@@ -33,7 +33,8 @@ import java.util.Locale
 
 @Composable
 fun PetLog(
-    viewModel: WalkRecordViewModel
+    viewModel: WalkRecordViewModel,
+    modifier: Modifier = Modifier
 ) {
     val walkRecords by viewModel.walkRecords.collectAsState()
     
@@ -44,28 +45,31 @@ fun PetLog(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
             .background(Color.White)
-            .padding(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(32.dp))
         Text(
             text = "산책 기록",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(16.dp)
         )
         
         if (walkRecords.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f), // 남은 공간을 모두 차지
                 contentAlignment = Alignment.Center
             ) {
                 Text("아직 산책 기록이 없어요. 산책을 시작해보세요!")
             }
         } else {
             LazyColumn(
-                modifier = Modifier.padding(bottom = 80.dp), // 네비게이션 바 높이만큼 하단 패딩 추가
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f), // 남은 공간을 모두 차지
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(walkRecords) { record ->

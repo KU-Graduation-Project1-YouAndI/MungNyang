@@ -55,11 +55,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.mungnyang.R
 import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 import androidx.compose.foundation.layout.navigationBarsPadding
+import android.net.Uri
+import android.provider.MediaStore
+import android.os.Build
+import android.graphics.ImageDecoder
 
 
 @Composable
@@ -394,17 +400,13 @@ fun AiCameraDogEye(
                                         photoFile
                                     )
                                     // 원본 이미지 저장
-                                    val originalFile = getMungNyangOutputFile(context, "original_")
+                                    val originalFile = getMungNyangOutputFile(context)
                                     photoFile.copyTo(originalFile, overwrite = true)
-                                    
-                                    // AI 처리를 위한 224x224 이미지 저장
-                                    val aiFile = getMungNyangOutputFile(context, "ai_")
-                                    cropCenterSquareTo224(photoFile, aiFile)
                                     
                                     // 갤러리 앱에서 보이게 미디어 스캔
                                     MediaScannerConnection.scanFile(
                                         context,
-                                        arrayOf(originalFile.absolutePath, aiFile.absolutePath),
+                                        arrayOf(originalFile.absolutePath),
                                         null,
                                         null
                                     )
@@ -572,6 +574,27 @@ private fun preprocessBitmap(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
         }
         if (resizedBitmap != null && resizedBitmap != softwareBitmap) {
             resizedBitmap.recycle()
+        }
+    }
+}
+
+private fun loadBitmap(context: Context, uriString: String): Bitmap? {
+    var inputStream: FileInputStream? = null
+    try {
+        val uri = Uri.parse(uriString)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+        } else {
+            MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+        }
+    } catch (e: Exception) {
+        Log.e("AiCheckDogEye", "이미지 로드 실패", e)
+        return null
+    } finally {
+        try {
+            inputStream?.close()
+        } catch (e: IOException) {
+            Log.e("AiCheckDogEye", "스트림 닫기 실패", e)
         }
     }
 }

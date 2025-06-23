@@ -46,6 +46,7 @@ import java.io.FileInputStream
 import java.io.IOException
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
+import kotlin.concurrent.thread
 
 private fun sliceString(input: String, startIndex: Int): String {
     val sub = input.substring(startIndex)
@@ -59,13 +60,16 @@ private fun sliceProbability(input: String): String {
     return input.substring(index)
 }
 
-private fun loadBitmap(context: android.content.Context, uriString: String): android.graphics.Bitmap? {
+private fun loadBitmap(
+    context: android.content.Context,
+    uriString: String
+): android.graphics.Bitmap? {
     return try {
         val uri = Uri.parse(uriString)
         // 원본 이미지 URI에서 AI 이미지 URI로 변환
         val aiUriString = uriString.replace("original_", "ai_")
         val aiUri = Uri.parse(aiUriString)
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, aiUri))
         } else {
@@ -82,7 +86,11 @@ private fun loadModelFile(assetManager: AssetManager, modelFileName: String): Ma
         val fileDescriptor = assetManager.openFd(modelFileName)
         val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
         val fileChannel = inputStream.channel
-        val result = fileChannel.map(FileChannel.MapMode.READ_ONLY, fileDescriptor.startOffset, fileDescriptor.declaredLength)
+        val result = fileChannel.map(
+            FileChannel.MapMode.READ_ONLY,
+            fileDescriptor.startOffset,
+            fileDescriptor.declaredLength
+        )
         inputStream.close()
         fileChannel.close()
         result
@@ -141,7 +149,8 @@ private fun preprocessBitmap(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
         bitmap
     }
 
-    val resizedBitmap = Bitmap.createScaledBitmap(softwareBitmap, 224, 224, true) // Adjust size based on your model
+    val resizedBitmap =
+        Bitmap.createScaledBitmap(softwareBitmap, 224, 224, true) // Adjust size based on your model
     val input = Array(1) { Array(224) { Array(224) { FloatArray(3) } } }
 
     try {
@@ -174,7 +183,7 @@ private fun preprocessBitmap(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
 fun AiCheckDogSkin(
     modifier: Modifier = Modifier,
     capturedImage: String?,
-    onNavigateAiHealth: ()->Unit
+    onNavigateAiHealth: () -> Unit
 ) {
     val context = LocalContext.current
     var bitmap = remember(capturedImage) {
@@ -186,11 +195,14 @@ fun AiCheckDogSkin(
     var isModelLoaded by remember { mutableStateOf(false) }
     var prediction by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
+    var trainingLaunched by remember { mutableStateOf(false) }
+
 
     // 컴포저블이 처음 실행될 때만 모델을 로드
     DisposableEffect(key1 = context) {
         try {
-            val modelBuffer = loadModelFile(assetManager = context.assets, modelFileName = "model.tflite")
+            val modelBuffer =
+                loadModelFile(assetManager = context.assets, modelFileName = "model.tflite")
             if (modelBuffer != null) {
                 tflite = Interpreter(modelBuffer)
                 isModelLoaded = true
@@ -217,29 +229,24 @@ fun AiCheckDogSkin(
         Spacer(modifier = Modifier.height(140.dp))
 
         Column(modifier = Modifier.padding(16.dp)) {
-            if (bitmap != null && isModelLoaded) {
-                try {
-                    prediction = runModelInference(tflite, bitmap)
-                    errorMessage = "" // 성공 시 에러 메시지 초기화
+            if (bitmap != null && isModelLoaded && !trainingLaunched) {
+                trainingLaunched = true
 
-                    Thread {
-                        try {
-                            val modelBuffer = loadModelFile(context.assets, "model.tflite")
-                            if (modelBuffer != null) {
-                                val trainingInterpreter = Interpreter(modelBuffer)
-                                FederateLearning.runTraining(bitmap, trainingInterpreter, context)
-                                trainingInterpreter.close()
-                            } else {
-                                Log.e("AiCheckDogSkin", "학습용 모델 로드 실패: modelBuffer == null")
+                prediction = runModelInference(tflite, bitmap)
+                errorMessage = "" // 성공 시 에러 메시지 초기화
+
+                thread(start = true) {
+                    runCatching {
+                        loadModelFile(context.assets, "model.tflite")?.let { buf ->
+                            // use 블록으로 안전 종료
+                            Interpreter(buf).use { trainer ->
+                                FederateLearning.runTraining(bitmap, trainer, context)
                             }
-                        } catch (e: Exception) {
-                            Log.e("AiCheckDogSkin", "연합학습 중 오류", e)
-                        }
-                    }.start()
 
-                } catch (e: Exception) {
-                    Log.e("AiCheckDogSkin", "예측 실행 중 오류", e)
-                    errorMessage = "예측 실행 중 오류가 발생했습니다: ${e.message}"
+                        } ?: Log.e("AiCheckDogSkin", "학습용 모델 로드 실패 (buf == null)")
+                    }.onFailure {
+                        Log.e("AiCheckDogSkin", "연합학습 중 오류", it)
+                    }
                 }
             } else if (bitmap == null) {
                 errorMessage = "이미지가 로드되지 않았습니다."
@@ -258,7 +265,6 @@ fun AiCheckDogSkin(
                         .height(200.dp)
                 )
             }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             if (prediction.isNotEmpty()) {
@@ -276,7 +282,9 @@ fun AiCheckDogSkin(
                 Text(
                     text = sliceProbability(prediction),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp),
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 8.dp),
                     fontSize = 16.sp
                 )
             }
@@ -300,7 +308,9 @@ fun AiCheckDogSkin(
                 containerColor = Color(0xFFBF9270),
                 contentColor = Color(0xFFFFF2C2)
             ),
-            modifier = Modifier.width(300.dp).height(50.dp)
+            modifier = Modifier
+                .width(300.dp)
+                .height(50.dp)
         ) {
             Text(
                 text = "메뉴로 돌아가기",

@@ -97,11 +97,20 @@ dependencies {
     // Kakao Maps SDK
     implementation("com.kakao.maps.open:android:2.12.14")
 
-    // TensorFlow Lite Core 라이브러리
-    implementation("org.tensorflow:tensorflow-lite:2.12.0")
+    // tensorflow
+    implementation ("org.tensorflow:tensorflow-lite:2.13.0")
+    implementation ("org.tensorflow:tensorflow-lite-support:0.4.3")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.13.0")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.13.0") {
+        exclude(group = "com.google.ai.edge.litert", module = "litert-api")
+    }
 
-    // TensorFlow Lite Support Library (모델 로드 및 데이터 변환 지원)
-    implementation("org.tensorflow:tensorflow-lite-support:0.4.3")
+    // api
+    implementation ("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+
 }
 
 secrets {

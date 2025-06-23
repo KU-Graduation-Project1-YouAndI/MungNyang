@@ -1,5 +1,6 @@
 package com.example.mungnyang.uicomponents.aiCamera
 
+import android.util.Log
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -21,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.mungnyang.model.fd.FederateLearning
 import org.tensorflow.lite.Interpreter
 import java.io.IOException
 
@@ -40,6 +42,8 @@ fun ImagePredictionUI(
 
             bitmap?.let {
                 prediction = runModelInference(tflite, it)
+                Log.d("CHECK", "📦 runTraining 호출됨")
+                FederateLearning.runTraining(it, tflite, context)
             }
         }) {
             Text("Run Prediction")

@@ -7,6 +7,8 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -198,7 +200,6 @@ fun AiCheckDogSkin(
     var trainingLaunched by remember { mutableStateOf(false) }
 
 
-    // 컴포저블이 처음 실행될 때만 모델을 로드
     DisposableEffect(key1 = context) {
         try {
             val modelBuffer =
@@ -214,7 +215,6 @@ fun AiCheckDogSkin(
             errorMessage = "모델 초기화 중 오류가 발생했습니다: ${e.message}"
         }
 
-        // 컴포저블이 제거될 때 인터프리터 해제
         onDispose {
             tflite?.close()
         }
@@ -232,17 +232,24 @@ fun AiCheckDogSkin(
             if (bitmap != null && isModelLoaded && !trainingLaunched) {
                 trainingLaunched = true
 
-                prediction = runModelInference(tflite, bitmap)
-                errorMessage = "" // 성공 시 에러 메시지 초기화
+               // prediction = runModelInference(tflite, bitmap)
+               errorMessage = ""
 
-                thread(start = true) {
+                thread {
                     runCatching {
                         loadModelFile(context.assets, "model.tflite")?.let { buf ->
-                            // use 블록으로 안전 종료
                             Interpreter(buf).use { trainer ->
-                                FederateLearning.runTraining(bitmap, trainer, context)
-                            }
+                                val result = FederateLearning.runTraining(bitmap, trainer, context)
 
+                                // 메인(UI) 스레드로 올려서 State 업데이트
+                                Handler(Looper.getMainLooper()).post {
+                                    prediction = buildString {
+                                        append("Class ${result.predictedIndex}: ")
+                                        append(SkinLabels[result.predictedIndex])
+                                        append(" with probability ${"%.5f".format(result.confidence)}")
+                                    }
+                                }
+                            }
                         } ?: Log.e("AiCheckDogSkin", "학습용 모델 로드 실패 (buf == null)")
                     }.onFailure {
                         Log.e("AiCheckDogSkin", "연합학습 중 오류", it)
@@ -320,3 +327,8 @@ fun AiCheckDogSkin(
         }
     }
 }
+
+private val SkinLabels = listOf(
+    "구진 플라크","비듬/각질/상피성잔고리","태선화/과다색소침착",
+    "농포/여드름","미란/궤양","결절/종괴","무증상"
+)

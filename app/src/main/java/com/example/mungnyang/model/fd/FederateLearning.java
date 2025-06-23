@@ -34,7 +34,17 @@ public class FederateLearning {
             "4_농포/여드름", "5_미란/궤양", "6_결절/종괴", "7_무증상"
     };
 
-    public static void runTraining(Bitmap bmp, Interpreter tflite, Context context) {
+    public static class TrainResult {
+        public final int   predictedIndex;
+        public final float confidence;
+
+        public TrainResult(int idx, float conf) {
+            this.predictedIndex = idx;
+            this.confidence     = conf;
+        }
+    }
+
+    public static TrainResult runTraining(Bitmap bmp, Interpreter tflite, Context context) {
         ByteBuffer xBuf = preprocessImage(bmp);
 
         float[][] probsBefore = new float[1][7];
@@ -126,6 +136,8 @@ public class FederateLearning {
         }
 
         saveAndSendDelta(delta, context);
+
+        return new TrainResult(idxAfter, confAfter);
     }
 
     private static ByteBuffer preprocessImage(Bitmap bmp) {
